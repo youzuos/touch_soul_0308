@@ -1,0 +1,9 @@
+{
+  "name": "触心 (TouchSoul)",
+  "description": "基于AI的情感陪伴应用，专为银发群体设计，支持手势控制与语音交互。",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
