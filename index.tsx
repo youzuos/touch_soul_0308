@@ -403,6 +403,8 @@ const TouchSoul: React.FC = () => {
   const interactionRef = useRef({
     lastTap: 0, clickTimer: null as any, longPressTimer: null as any, startPos: { x: 0, y: 0 }, isMoving: false, isLongPress: false
   });
+  // 移动端：首次用户手势时同步解锁音频，否则 iOS/Android 会静音
+  const audioUnlockedRef = useRef(false);
 
   const getTargetVoice = () => profile?.voice || 'Kore';
   const getTargetStyle = () => STYLE_PRESETS.find(s => s.id === (profile?.voiceStyle || 'warm'))?.instruction || '';
@@ -471,6 +473,28 @@ const TouchSoul: React.FC = () => {
     } catch (e) {
       console.error("Audio/AI Init Failed", e);
     }
+  };
+
+  /** 必须在用户手势的同步调用栈内调用一次，否则移动端（尤其 iOS）会静音。在首次触摸时调用。 */
+  const unlockAudioForMobile = () => {
+    if (audioUnlockedRef.current) return;
+    audioUnlockedRef.current = true;
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      }
+      if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume();
+      }
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        const u = new SpeechSynthesisUtterance('\u200B');
+        u.volume = 0;
+        u.rate = 10;
+        u.lang = 'zh-CN';
+        window.speechSynthesis.speak(u);
+        setTimeout(() => window.speechSynthesis.cancel(), 0);
+      }
+    } catch (_) {}
   };
 
   const stopCurrentSpeech = () => {
@@ -1067,6 +1091,7 @@ const TouchSoul: React.FC = () => {
 
   const onPointerDown = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('.no-trigger')) return;
+    unlockAudioForMobile();
 
     if (interactionRef.current.longPressTimer) {
       clearTimeout(interactionRef.current.longPressTimer);
